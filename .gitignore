@@ -2,3 +2,11 @@ target/
 node_modules/
 .DS_Store
 dist/
+.superpowers/
+.playwright-mcp/
+hub/app/.playwright-mcp/
+hub/app/test-results/
+hub/app/playwright-report/
+hub/app/src-tauri/binaries/hub
+hub/app/src-tauri/binaries/hub-daemon
+hub/app/src-tauri/binaries/hub-relay

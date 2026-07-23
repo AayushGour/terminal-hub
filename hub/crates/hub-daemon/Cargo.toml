@@ -1,0 +1,18 @@
+[package]
+name = "hub-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hub-proto = { path = "../hub-proto" }
+hub-transport = { path = "../hub-transport" }
+hub-relay = { path = "../hub-relay" }
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+nix.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+libc.workspace = true

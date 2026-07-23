@@ -1,0 +1,14 @@
+[package]
+name = "hub-e2e"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+hub-proto = { path = "../hub-proto" }
+hub-relay = { path = "../hub-relay" }
+hub-tui = { path = "../hub-tui" }
+tokio.workspace = true
+anyhow.workspace = true
+libc.workspace = true

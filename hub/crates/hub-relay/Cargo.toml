@@ -1,0 +1,32 @@
+[package]
+name = "hub-relay"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "hub_relay"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hub-relay"
+path = "src/main.rs"
+
+[dependencies]
+hub-proto = { path = "../hub-proto" }
+hub-pty = { path = "../hub-pty" }
+hub-term = { path = "../hub-term" }
+hub-transport = { path = "../hub-transport" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+nix.workspace = true
+libc.workspace = true
+
+[dev-dependencies]
+# Extra feature (Cargo unifies with the [dependencies] nix above) so the
+# SIGWINCH-wiring test can open a real controlled pty via nix::pty::openpty
+# to drive TIOCGWINSZ deterministically, without depending on the test
+# process having its own controlling terminal.
+nix = { version = "0.27", features = ["term"] }

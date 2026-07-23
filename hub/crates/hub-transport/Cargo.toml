@@ -1,0 +1,13 @@
+[package]
+name = "hub-transport"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hub-proto = { path = "../hub-proto" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+libc = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

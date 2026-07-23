@@ -1,0 +1,11 @@
+[package]
+name = "hub-pty"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+portable-pty = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+libc = { workspace = true }

@@ -1,0 +1,5 @@
+# Bundled hub binaries are build artifacts, refreshed by `npm run prebuild:bins`
+# (see hub/app/package.json) before `tauri build`. Do not commit them.
+/hub
+/hub-daemon
+/hub-relay

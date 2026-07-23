@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window: core APIs (events, window) plus the hub viewer command surface (list/attach/detach/input/resize/kill/spawn/reconcile/buffer-size) and app-lifecycle install/uninstall.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-list-sessions",
+    "allow-attach",
+    "allow-detach",
+    "allow-send-input",
+    "allow-resize",
+    "allow-claim-size",
+    "allow-kill",
+    "allow-spawn-session",
+    "allow-reconcile-sessions",
+    "allow-get-buffer-size",
+    "allow-set-buffer-size",
+    "allow-get-setup-declined",
+    "allow-set-setup-declined",
+    "allow-hub-is-installed",
+    "allow-hub-do-install",
+    "allow-hub-do-uninstall"
+  ]
+}

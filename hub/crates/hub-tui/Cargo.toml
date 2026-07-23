@@ -1,0 +1,22 @@
+[package]
+name = "hub-tui"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "hub_tui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hub-tui"
+path = "src/main.rs"
+
+[dependencies]
+hub-proto = { path = "../hub-proto" }
+hub-relay = { path = "../hub-relay" }
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+hub-daemon = { path = "../hub-daemon" }

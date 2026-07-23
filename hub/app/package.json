@@ -1,0 +1,29 @@
+{
+  "name": "hub-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test:e2e": "playwright test",
+    "prebuild:bins": "cargo build --release -p hub-cli -p hub-daemon -p hub-relay && mkdir -p src-tauri/binaries && cp ../target/release/hub ../target/release/hub-daemon ../target/release/hub-relay src-tauri/binaries/",
+    "tauri:build": "npm run prebuild:bins && tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@sveltejs/vite-plugin-svelte": "^4",
+    "@tauri-apps/cli": "^2",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "typescript": "^5",
+    "vite": "^5"
+  }
+}
