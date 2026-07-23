@@ -25,8 +25,9 @@ Capture is **opt-in, consent-gated, and fully reversible**. Nothing is captured 
 - [How it works](#how-it-works)
 - [Platform support](#platform-support)
 - [Quick start](#quick-start)
-  - [Option A — Install natively (macOS / Linux)](#option-a--install-natively-macos--linux)
-  - [Option B — Try it in Docker (no install)](#option-b--try-it-in-docker-no-install)
+  - [Option A — Install from npm (recommended)](#option-a--install-from-npm-recommended)
+  - [Option B — Build from source (macOS / Linux)](#option-b--build-from-source-macos--linux)
+  - [Option C — Try it in Docker (no install)](#option-c--try-it-in-docker-no-install)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Uninstall](#uninstall)
@@ -102,7 +103,27 @@ flowchart LR
 
 ## Quick start
 
-### Option A — Install natively (macOS / Linux)
+### Option A — Install from npm (recommended)
+
+One command, every platform — no build:
+
+```bash
+npm i -g terminal-hub
+```
+
+Then:
+- **Launch the GUI:** run `terminal-hub`, or click **Terminal Hub** in your apps menu — Launchpad/Spotlight (macOS), the app grid (Linux), or the Start Menu (Windows). The install registers it automatically.
+- **Use the CLI:** `hub status`, `hub kill <id>`, `hub uninstall`, …
+
+On **first launch**, Terminal Hub asks to enable capture — click **Enable**, then open a new terminal and it shows up.
+
+Notes:
+- **macOS:** no Gatekeeper warning — the launcher isn't quarantined, so no code-signing is needed.
+- **Linux:** the GUI needs the webkit runtime — `sudo apt install libwebkit2gtk-4.1-0` (the launcher tells you if it's missing).
+- **Windows:** binaries are phase 2 — see [Roadmap](#roadmap--vision).
+- **Uninstall:** `npm rm -g terminal-hub` (also removes the apps-menu entry). To revert capture too, run `hub uninstall` first.
+
+### Option B — Build from source (macOS / Linux)
 
 **Prerequisites**
 - [Rust](https://rustup.rs) (stable) and [Node.js](https://nodejs.org) 18+ with npm.
@@ -126,7 +147,7 @@ npm run tauri:build      # builds the engine binaries + the app
 
 On **first launch**, Terminal Hub asks to enable capture. Click **Enable** — this adds a guarded, reversible line to your `~/.zshrc` (or `~/.bashrc`), drops the binaries in `~/.hub/bin`, and starts the background service. Then **open a new terminal** and it shows up in the app.
 
-### Option B — Try it in Docker (no install)
+### Option C — Try it in Docker (no install)
 
 Want to kick the tires without installing anything? Run a full **Ubuntu 24.04 + XFCE desktop** with Terminal Hub inside, streamed to your browser. Any terminal you open inside gets captured.
 

@@ -1,0 +1,9 @@
+{
+  "name": "@terminal-hub/linux-arm64",
+  "version": "0.1.0",
+  "description": "Terminal Hub prebuilt binaries for linux-arm64.",
+  "license": "MIT",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": ["bin"]
+}

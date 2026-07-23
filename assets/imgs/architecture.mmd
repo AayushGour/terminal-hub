@@ -1,0 +1,29 @@
+flowchart LR
+    T["Your terminals<br/>Terminal.app · iTerm · VS Code · tmux"]
+
+    subgraph relayland["Per-session relays — each OWNS its pty"]
+        R1["hub-relay<br/>pty + vt100 screen"]
+        R2["hub-relay<br/>pty + vt100 screen"]
+    end
+
+    D(["hub-daemon<br/>router · one unix socket<br/>owns no pty · never a SPOF"])
+
+    G["Terminal Hub app<br/>infinite canvas of live terminals"]
+    CLI["hub CLI<br/>install · kill · status"]
+
+    T -->|"rc hook: hub attach"| R1
+    G -->|"+ New session (spawn)"| R2
+    R1 -->|"register"| D
+    R2 -->|"register"| D
+    G -->|"attach · input · resize · kill"| D
+    D -->|"stream output · replay"| G
+    CLI -.->|"manage"| D
+
+    classDef relay fill:#0e2f1ccc,stroke:#2ecc71,color:#eafff2;
+    classDef daemon fill:#0b2038cc,stroke:#4a90d9,color:#eaf3ff;
+    classDef gui fill:#241a33cc,stroke:#a26bd6,color:#f3eaff;
+    classDef plain fill:#2a2a2acc,stroke:#8a8a8a,color:#eeeeee;
+    class R1,R2 relay;
+    class D daemon;
+    class G gui;
+    class T,CLI plain;

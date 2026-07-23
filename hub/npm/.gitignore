@@ -1,0 +1,8 @@
+# Prebuilt binaries are dropped into packages/*/bin by CI (or a local smoke
+# test) at release time — never commit them.
+packages/*/bin/hub
+packages/*/bin/hub-daemon
+packages/*/bin/hub-relay
+packages/*/bin/hub-app
+packages/*/bin/*.exe
+node_modules/
