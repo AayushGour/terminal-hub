@@ -1,7 +1,7 @@
 name: release
 
 # Auto-publish the npm packages when code lands on `main` — but ONLY when the
-# version in hub/npm/terminal-hub/package.json is new (npm rejects re-publishing
+# version in hub/npm/term-hub/package.json is new (npm rejects re-publishing
 # an existing version). So the release flow is simply:
 #   bump the version -> open PR -> merge to main -> this publishes it.
 # Merges that don't change the version are a no-op (the build is skipped too).
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  # Cheap gate: is terminal-hub@<version> already on npm? If yes, skip everything.
+  # Cheap gate: is term-hub@<version> already on npm? If yes, skip everything.
   check:
     runs-on: ubuntu-latest
     outputs:
@@ -26,13 +26,13 @@ jobs:
         with: { node-version: 20 }
       - id: decide
         run: |
-          VER=$(node -p "require('./hub/npm/terminal-hub/package.json').version")
+          VER=$(node -p "require('./hub/npm/term-hub/package.json').version")
           echo "version=$VER" >> "$GITHUB_OUTPUT"
-          if npm view "terminal-hub@$VER" version >/dev/null 2>&1; then
-            echo "terminal-hub@$VER already published — nothing to do."
+          if npm view "term-hub@$VER" version >/dev/null 2>&1; then
+            echo "term-hub@$VER already published — nothing to do."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
-            echo "terminal-hub@$VER is new — will build + publish."
+            echo "term-hub@$VER is new — will build + publish."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -124,7 +124,7 @@ jobs:
           node - "${{ needs.check.outputs.version }}" <<'NODE'
           const fs = require("fs"), path = require("path");
           const ver = process.argv[2], root = "hub/npm";
-          const main = path.join(root, "terminal-hub", "package.json");
+          const main = path.join(root, "term-hub", "package.json");
           const m = JSON.parse(fs.readFileSync(main));
           m.version = ver;
           for (const k of Object.keys(m.optionalDependencies || {})) m.optionalDependencies[k] = ver;
@@ -157,4 +157,4 @@ jobs:
             [ -n "$(ls -A "$key/bin" 2>/dev/null | grep -v README)" ] || { echo "skip $key (no binaries)"; continue; }
             publish_if_new "${key%/}"
           done
-          publish_if_new hub/npm/terminal-hub
+          publish_if_new hub/npm/term-hub

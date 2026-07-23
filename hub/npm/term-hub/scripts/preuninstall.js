@@ -19,8 +19,8 @@ const rm = (p) => {
 if (process.platform === "darwin") {
   rm(path.join(os.homedir(), "Applications", `${NAME}.app`));
 } else if (process.platform === "linux") {
-  rm(path.join(os.homedir(), ".local", "share", "applications", "terminal-hub.desktop"));
-  rm(path.join(os.homedir(), ".local", "share", "icons", "terminal-hub.png"));
+  rm(path.join(os.homedir(), ".local", "share", "applications", "term-hub.desktop"));
+  rm(path.join(os.homedir(), ".local", "share", "icons", "term-hub.png"));
 } else if (process.platform === "win32") {
   const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
   rm(path.join(appData, "Microsoft", "Windows", "Start Menu", "Programs", `${NAME}.lnk`));

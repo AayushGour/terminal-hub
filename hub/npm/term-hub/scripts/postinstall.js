@@ -16,7 +16,7 @@ function safe(label, fn) {
   try {
     fn();
   } catch (e) {
-    console.error(`Terminal Hub: could not register ${label} (${e.message}). You can still run \`terminal-hub\`.`);
+    console.error(`Terminal Hub: could not register ${label} (${e.message}). You can still run \`term-hub\`.`);
   }
 }
 
@@ -43,7 +43,7 @@ function registerMac() {
     fs.mkdirSync(macos, { recursive: true });
     fs.mkdirSync(res, { recursive: true });
 
-    const launcher = path.join(macos, "terminal-hub");
+    const launcher = path.join(macos, "term-hub");
     fs.writeFileSync(launcher, `#!/bin/sh\nexec "${appBin}" "$@"\n`);
     fs.chmodSync(launcher, 0o755);
 
@@ -56,7 +56,7 @@ function registerMac() {
   <key>CFBundleName</key><string>${NAME}</string>
   <key>CFBundleDisplayName</key><string>${NAME}</string>
   <key>CFBundleIdentifier</key><string>dev.hub.launcher</string>
-  <key>CFBundleExecutable</key><string>terminal-hub</string>
+  <key>CFBundleExecutable</key><string>term-hub</string>
   <key>CFBundleIconFile</key><string>icon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
 </dict></plist>
@@ -78,8 +78,8 @@ function registerLinux() {
     const png = path.join(assets, "icon.png");
     let icon = "utilities-terminal";
     if (fs.existsSync(png)) {
-      fs.copyFileSync(png, path.join(iconsDir, "terminal-hub.png"));
-      icon = "terminal-hub";
+      fs.copyFileSync(png, path.join(iconsDir, "term-hub.png"));
+      icon = "term-hub";
     }
 
     const desktop = `[Desktop Entry]
@@ -91,7 +91,7 @@ Icon=${icon}
 Terminal=false
 Categories=Utility;System;TerminalEmulator;
 `;
-    fs.writeFileSync(path.join(appsDir, "terminal-hub.desktop"), desktop);
+    fs.writeFileSync(path.join(appsDir, "term-hub.desktop"), desktop);
     console.log("Terminal Hub: added to your applications menu.");
   });
 }

@@ -108,11 +108,11 @@ flowchart LR
 One command, every platform — no build:
 
 ```bash
-npm i -g terminal-hub
+npm i -g term-hub
 ```
 
 Then:
-- **Launch the GUI:** run `terminal-hub`, or click **Terminal Hub** in your apps menu — Launchpad/Spotlight (macOS), the app grid (Linux), or the Start Menu (Windows). The install registers it automatically.
+- **Launch the GUI:** run `term-hub`, or click **Terminal Hub** in your apps menu — Launchpad/Spotlight (macOS), the app grid (Linux), or the Start Menu (Windows). The install registers it automatically.
 - **Use the CLI:** `hub status`, `hub kill <id>`, `hub uninstall`, …
 
 On **first launch**, Terminal Hub asks to enable capture — click **Enable**, then open a new terminal and it shows up.
@@ -121,7 +121,7 @@ Notes:
 - **macOS:** no Gatekeeper warning — the launcher isn't quarantined, so no code-signing is needed.
 - **Linux:** the GUI needs the webkit runtime — `sudo apt install libwebkit2gtk-4.1-0` (the launcher tells you if it's missing).
 - **Windows:** binaries are phase 2 — see [Roadmap](#roadmap--vision).
-- **Uninstall:** `npm rm -g terminal-hub` (also removes the apps-menu entry). To revert capture too, run `hub uninstall` first.
+- **Uninstall:** `npm rm -g term-hub` (also removes the apps-menu entry). To revert capture too, run `hub uninstall` first.
 
 ### Option B — Build from source (macOS / Linux)
 

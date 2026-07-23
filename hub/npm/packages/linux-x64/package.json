@@ -1,5 +1,5 @@
 {
-  "name": "@terminal-hub/linux-x64",
+  "name": "@term-hub/linux-x64",
   "version": "0.1.0",
   "description": "Terminal Hub prebuilt binaries for linux-x64.",
   "license": "MIT",

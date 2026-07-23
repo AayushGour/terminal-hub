@@ -1,14 +1,14 @@
 {
-  "name": "terminal-hub",
+  "name": "term-hub",
   "version": "0.1.0",
   "description": "Terminal Hub — capture every terminal you open and manage them all from one window. One-command cross-platform install (macOS / Linux / Windows).",
   "keywords": ["terminal", "tmux", "pty", "shell", "tui", "terminal-manager", "tauri"],
-  "homepage": "https://github.com/your-org/terminal-hub#readme",
+  "homepage": "https://github.com/your-org/term-hub#readme",
   "license": "MIT",
   "author": "TODO your name <ag14906@gmail.com>",
   "type": "commonjs",
   "bin": {
-    "terminal-hub": "bin/terminal-hub.js",
+    "term-hub": "bin/term-hub.js",
     "hub": "bin/hub.js"
   },
   "files": [
@@ -23,10 +23,10 @@
   },
   "//": "optionalDependencies: npm installs ONLY the package whose os/cpu matches the host, so a mac user downloads just the darwin binaries, etc. Versions are kept in lockstep with this package and bumped together by CI.",
   "optionalDependencies": {
-    "@terminal-hub/darwin-arm64": "0.1.0",
-    "@terminal-hub/darwin-x64": "0.1.0",
-    "@terminal-hub/linux-x64": "0.1.0",
-    "@terminal-hub/linux-arm64": "0.1.0"
+    "@term-hub/darwin-arm64": "0.1.0",
+    "@term-hub/darwin-x64": "0.1.0",
+    "@term-hub/linux-x64": "0.1.0",
+    "@term-hub/linux-arm64": "0.1.0"
   },
   "engines": {
     "node": ">=18"

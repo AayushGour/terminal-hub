@@ -1,5 +1,5 @@
 {
-  "name": "@terminal-hub/darwin-arm64",
+  "name": "@term-hub/darwin-arm64",
   "version": "0.1.0",
   "description": "Terminal Hub prebuilt binaries for darwin-arm64.",
   "license": "MIT",

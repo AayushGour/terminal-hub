@@ -1,5 +1,5 @@
 {
-  "name": "@terminal-hub/win32-x64",
+  "name": "@term-hub/win32-x64",
   "version": "0.1.0",
   "description": "Terminal Hub prebuilt binaries for win32-x64.",
   "license": "MIT",
