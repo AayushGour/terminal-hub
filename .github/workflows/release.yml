@@ -45,10 +45,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14,         key: darwin-arm64, target: aarch64-apple-darwin }
-          - { os: macos-13,         key: darwin-x64,   target: x86_64-apple-darwin }
-          - { os: ubuntu-22.04,     key: linux-x64,    target: x86_64-unknown-linux-gnu }
-          - { os: ubuntu-22.04-arm, key: linux-arm64,  target: aarch64-unknown-linux-gnu }
+          # Both mac targets run on the arm64 runner (macos-15). The Intel runner
+          # label (macos-13) is retired, so x86_64 is CROSS-compiled here — rustup
+          # adds the target and macOS links both arches from one SDK.
+          # Ubuntu 24.04 is required: it ships libwebkit2gtk-4.1 (Tauri v2 needs
+          # 4.1; 22.04 only has 4.0).
+          - { os: macos-15,         key: darwin-arm64, target: aarch64-apple-darwin }
+          - { os: macos-15,         key: darwin-x64,   target: x86_64-apple-darwin }
+          - { os: ubuntu-24.04,     key: linux-x64,    target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, key: linux-arm64,  target: aarch64-unknown-linux-gnu }
           # - { os: windows-latest, key: win32-x64, target: x86_64-pc-windows-msvc }  # phase 2
     steps:
       - uses: actions/checkout@v5
