@@ -11,7 +11,7 @@
   },
   "app": {
     "windows": [
-      { "title": "hub", "width": 1200, "height": 800 }
+      { "title": "Terminal Hub", "width": 1200, "height": 800 }
     ],
     "security": { "csp": null }
   },

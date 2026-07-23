@@ -1,0 +1,10 @@
+target
+app/node_modules
+app/dist
+app/src-tauri/target
+app/src-tauri/binaries/hub
+app/src-tauri/binaries/hub-daemon
+app/src-tauri/binaries/hub-relay
+app/test-results
+app/playwright-report
+**/.DS_Store
