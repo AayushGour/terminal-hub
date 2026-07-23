@@ -165,6 +165,48 @@ impl Drop for RawTermGuard {
     }
 }
 
+fn write_raw(fd: std::os::fd::RawFd, bytes: &[u8]) -> std::io::Result<()> {
+    let n = unsafe { libc::write(fd, bytes.as_ptr() as *const libc::c_void, bytes.len()) };
+    if n == bytes.len() as isize { Ok(()) } else { Err(std::io::Error::last_os_error()) }
+}
+
+/// Enables DECSET 1004 "focus reporting" on the OUTER terminal for the
+/// lifetime of an External-origin relay, disabling it again on drop.
+///
+/// WHY: this is how the relay learns the user switched attention BACK to this
+/// vendor terminal (as opposed to e.g. a Hub GUI tile), so it can re-claim the
+/// pty's real size (see `strip_focus_reports`) instead of staying pinned
+/// wherever the last viewer left it. Terminals that don't support the mode
+/// (plain Terminal.app, a piped/redirected fd) just never send the report —
+/// silent no-op, sizing falls back to last-claim-wins (spec §7's documented
+/// fallback).
+struct FocusReportGuard {
+    fd: std::os::fd::RawFd,
+}
+impl FocusReportGuard {
+    /// The relay's stdout (fd 1) IS the outer terminal on the own_stdio path.
+    fn install() -> Option<FocusReportGuard> {
+        Self::install_fd(1)
+    }
+    /// No-op (`None`) when `fd` isn't a real terminal — never writes an
+    /// escape sequence into a pipe/file. Split from `install` so it can be
+    /// tested against a real openpty fd instead of the process's fd 1.
+    fn install_fd(fd: std::os::fd::RawFd) -> Option<FocusReportGuard> {
+        unsafe {
+            if libc::isatty(fd) != 1 {
+                return None;
+            }
+        }
+        write_raw(fd, b"\x1b[?1004h").ok()?;
+        Some(FocusReportGuard { fd })
+    }
+}
+impl Drop for FocusReportGuard {
+    fn drop(&mut self) {
+        let _ = write_raw(self.fd, b"\x1b[?1004l");
+    }
+}
+
 /// Entry point for a real relay run. Implemented incrementally: pty (Task 3),
 /// register + record + serve (Task 6/7), resize (Task 8), teardown (Task 9).
 ///
@@ -258,8 +300,16 @@ pub async fn run_relay(cfg: RelayConfig, daemon_sock: Option<String>, own_stdio:
     } else {
         None
     };
+    // Lets the outer terminal report focus in/out (see `FocusReportGuard`),
+    // so `strip_focus_reports` can re-claim the pty's real size when the user
+    // switches attention back to it. Held for the same lifetime as raw mode.
+    let _focus_guard = if own_stdio && matches!(cfg.origin, Origin::External) {
+        FocusReportGuard::install()
+    } else {
+        None
+    };
     if own_stdio && matches!(cfg.origin, Origin::External) {
-        spawn_primary_bridge(ev.tx.clone()); // defined in Task 9
+        spawn_primary_bridge(ev.tx.clone(), resize_in.clone()); // defined in Task 9
         // External-origin only: the outer terminal is OUR controlling
         // terminal (fds 0/1). Hub-origin has no outer terminal to resize, so
         // it's gated identically to the primary bridge above.
@@ -280,7 +330,11 @@ fn fr_into_reader(fr: FrameReader<tokio::net::unix::OwnedReadHalf>) -> FrameRead
 
 /// External-origin primary bridge: outer terminal is fd 0 (stdin) / fd 1
 /// (stdout, written from the actor's `stdout`). stdin EOF => PrimaryClosed.
-fn spawn_primary_bridge(ev: mpsc::UnboundedSender<RelayEvent>) {
+///
+/// Bytes are passed through `strip_focus_reports` first: `FocusReportGuard`
+/// asks the outer terminal to send DECSET 1004 focus events, and this is
+/// where the relay consumes them (see that function for why).
+fn spawn_primary_bridge(ev: mpsc::UnboundedSender<RelayEvent>, resize_in: mpsc::UnboundedSender<(u16, u16)>) {
     tokio::spawn(async move {
         use tokio::io::AsyncReadExt;
         let mut stdin = tokio::io::stdin();
@@ -288,11 +342,44 @@ fn spawn_primary_bridge(ev: mpsc::UnboundedSender<RelayEvent>) {
         loop {
             match stdin.read(&mut buf).await {
                 Ok(0) => { let _ = ev.send(RelayEvent::PrimaryClosed); break; }
-                Ok(n) => { if ev.send(RelayEvent::PrimaryInput(buf[..n].to_vec())).is_err() { break; } }
+                Ok(n) => {
+                    let forward = strip_focus_reports(&buf[..n], libc::STDOUT_FILENO, &resize_in);
+                    if ev.send(RelayEvent::PrimaryInput(forward)).is_err() { break; }
+                }
                 Err(_) => { let _ = ev.send(RelayEvent::PrimaryClosed); break; }
             }
         }
     });
+}
+
+/// Removes DECSET 1004 focus-report sequences (`ESC [ I` focus-in / `ESC [ O`
+/// focus-out) from bytes arriving on the outer terminal before they're
+/// forwarded to the inner pty — the inner shell never asked for these,
+/// only `FocusReportGuard` did, on the relay's own behalf, so they must not
+/// leak through as literal keystrokes.
+///
+/// On focus-IN, re-reads the outer terminal's real size off `term_fd` and
+/// pushes it into `resize_in` — the same debounced path SIGWINCH/ClaimSize/
+/// Resize use (spec §7 "Focus-follows-size"). This is what lets moving focus
+/// BACK to the vendor terminal snap the pty back to its own real size,
+/// instead of staying pinned wherever a Hub tile's `ClaimSize` last left it.
+pub fn strip_focus_reports(data: &[u8], term_fd: i32, resize_in: &mpsc::UnboundedSender<(u16, u16)>) -> Vec<u8> {
+    let mut out = Vec::with_capacity(data.len());
+    let mut i = 0;
+    while i < data.len() {
+        if data[i] == 0x1b && i + 2 < data.len() && data[i + 1] == b'[' && matches!(data[i + 2], b'I' | b'O') {
+            if data[i + 2] == b'I' {
+                if let Some((cols, rows)) = read_term_size(term_fd) {
+                    let _ = resize_in.send((cols, rows));
+                }
+            }
+            i += 3;
+            continue;
+        }
+        out.push(data[i]);
+        i += 1;
+    }
+    out
 }
 
 /// Read the current terminal size from `fd` via TIOCGWINSZ. Returns `None` on
@@ -623,5 +710,54 @@ mod raw_term_tests {
     fn raw_guard_is_noop_on_non_tty() {
         let (rd, _wr) = nix::unistd::pipe().expect("pipe");
         assert!(RawTermGuard::install_fd(rd.as_raw_fd()).is_none());
+    }
+}
+
+#[cfg(test)]
+mod focus_guard_tests {
+    use super::FocusReportGuard;
+    use std::os::fd::AsRawFd;
+
+    /// Drains everything currently buffered on `fd` (non-blocking) — used to
+    /// read back what a guard wrote to the pty's master side.
+    fn read_all_available(fd: i32) -> Vec<u8> {
+        unsafe {
+            let flags = libc::fcntl(fd, libc::F_GETFL);
+            libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
+        }
+        let mut out = Vec::new();
+        let mut buf = [0u8; 256];
+        loop {
+            let n = unsafe { libc::read(fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
+            if n <= 0 {
+                break;
+            }
+            out.extend_from_slice(&buf[..n as usize]);
+        }
+        out
+    }
+
+    // Installing must enable DECSET 1004 on the real tty; dropping must
+    // disable it again -- otherwise a killed relay would leave the user's
+    // real terminal emitting focus-report escape codes into whatever runs
+    // there next.
+    #[test]
+    fn focus_guard_enables_on_install_and_disables_on_drop() {
+        let pty = nix::pty::openpty(None, None).expect("openpty");
+        let slave = pty.slave.as_raw_fd();
+        let master = pty.master.as_raw_fd();
+
+        let g = FocusReportGuard::install_fd(slave).expect("install on a real tty");
+        assert_eq!(read_all_available(master), b"\x1b[?1004h", "install must enable focus reporting");
+
+        drop(g);
+        assert_eq!(read_all_available(master), b"\x1b[?1004l", "drop must disable focus reporting");
+    }
+
+    // A non-tty fd (pipe) must be left completely untouched -> install is a no-op.
+    #[test]
+    fn focus_guard_is_noop_on_non_tty() {
+        let (rd, _wr) = nix::unistd::pipe().expect("pipe");
+        assert!(FocusReportGuard::install_fd(rd.as_raw_fd()).is_none());
     }
 }
