@@ -3,7 +3,7 @@
 Ship Terminal Hub so users can install it with **one cross-platform command**:
 
 ```bash
-npm i -g term-hub      # macOS / Linux / Windows(*)
+npm i -g @term-hub/term-hub      # macOS / Linux / Windows(*)
 term-hub               # launches the GUI (also appears in the apps menu)
 hub status                 # the CLI
 ```
@@ -13,7 +13,7 @@ hub status                 # the CLI
 ## How it's laid out (esbuild-style)
 
 ```
-term-hub/              # the launcher package (published as `term-hub`)
+term-hub/              # the launcher package (published as `@term-hub/term-hub`)
   bin/term-hub.js      # resolves the host binary + launches the GUI (detached)
   bin/hub.js               # passthrough to the `hub` CLI
   lib/resolve.js           # picks @term-hub/<platform>-<arch>
@@ -54,8 +54,8 @@ that don't change it are a no-op (npm rejects duplicate versions).
 2. Open a PR → merge to `main`.
 3. `.github/workflows/release.yml` sees the new version, builds the binaries per
    platform (macOS arm64/x64, Linux x64/arm64), and `npm publish`es each
-   `@term-hub/*` plus the `term-hub` launcher. Publishing is idempotent —
-   anything already on npm is skipped.
+   `@term-hub/*` platform package plus the `@term-hub/term-hub` launcher.
+   Publishing is idempotent — anything already on npm is skipped.
 
 ## Local smoke test (no publish)
 

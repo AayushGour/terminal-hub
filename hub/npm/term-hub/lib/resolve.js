@@ -50,7 +50,7 @@ function exe(name) {
   if (!dir) {
     throw new Error(
       `Terminal Hub: the binary package ${PKG} isn't installed.\n` +
-        `Reinstall with:  npm install -g term-hub  (optional deps must be allowed)`
+        `Reinstall with:  npm install -g @term-hub/term-hub  (optional deps must be allowed)`
     );
   }
   return path.join(dir, name + EXT);

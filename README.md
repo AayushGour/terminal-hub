@@ -107,7 +107,7 @@ flowchart LR
 One command, every platform — no build:
 
 ```bash
-npm i -g term-hub
+npm i -g @term-hub/term-hub
 ```
 
 Then:
@@ -120,7 +120,7 @@ Notes:
 - **macOS:** no Gatekeeper warning — the launcher isn't quarantined, so no code-signing is needed.
 - **Linux:** the GUI needs the webkit runtime — `sudo apt install libwebkit2gtk-4.1-0` (the launcher tells you if it's missing).
 - **Windows:** binaries are phase 2 — see [Roadmap](#roadmap--vision).
-- **Uninstall:** `npm rm -g term-hub` (also removes the apps-menu entry). To revert capture too, run `hub uninstall` first.
+- **Uninstall:** `npm rm -g @term-hub/term-hub` (also removes the apps-menu entry). To revert capture too, run `hub uninstall` first.
 
 ### Option B — Try it in Docker (no install)
 

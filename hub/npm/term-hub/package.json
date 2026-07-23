@@ -1,5 +1,5 @@
 {
-  "name": "term-hub",
+  "name": "@term-hub/term-hub",
   "version": "0.1.0",
   "description": "Terminal Hub — capture every terminal you open and manage them all from one window. One-command cross-platform install (macOS / Linux / Windows).",
   "keywords": ["terminal", "tmux", "pty", "shell", "tui", "terminal-manager", "tauri"],

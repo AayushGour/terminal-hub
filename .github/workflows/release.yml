@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  # Cheap gate: is term-hub@<version> already on npm? If yes, skip everything.
+  # Cheap gate: is the launcher package@<version> already on npm? If yes, skip everything.
   check:
     runs-on: ubuntu-latest
     outputs:
@@ -26,13 +26,14 @@ jobs:
         with: { node-version: 22 }
       - id: decide
         run: |
+          NAME=$(node -p "require('./hub/npm/term-hub/package.json').name")
           VER=$(node -p "require('./hub/npm/term-hub/package.json').version")
           echo "version=$VER" >> "$GITHUB_OUTPUT"
-          if npm view "term-hub@$VER" version >/dev/null 2>&1; then
-            echo "term-hub@$VER already published — nothing to do."
+          if npm view "$NAME@$VER" version >/dev/null 2>&1; then
+            echo "$NAME@$VER already published — nothing to do."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
-            echo "term-hub@$VER is new — will build + publish."
+            echo "$NAME@$VER is new — will build + publish."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
