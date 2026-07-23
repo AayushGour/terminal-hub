@@ -17,7 +17,8 @@
   });
 
   // --- pan: drag empty canvas background ---
-  let panning = false;
+  // $state so `class:panning` (grab vs grabbing cursor) actually re-renders.
+  let panning = $state(false);
   let lastX = 0, lastY = 0;
   function onPointerDown(e: PointerEvent) {
     // Only the empty background pans -- tiles are children with their own

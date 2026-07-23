@@ -69,7 +69,18 @@ jobs:
 
       - name: Build engine binaries
         working-directory: hub
-        run: cargo build --release --target ${{ matrix.target }} -p hub-cli -p hub-daemon -p hub-relay
+        shell: bash
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p hub-cli -p hub-daemon -p hub-relay
+          # tauri.conf.json's bundle.resources references binaries/hub etc, and
+          # tauri-build validates those paths exist (even with --no-bundle). The
+          # local `prebuild:bins` copies from target/release; here we build with
+          # an explicit --target, so copy from target/<triple>/release.
+          EXT=""; [[ "${{ matrix.key }}" == win32-* ]] && EXT=".exe"
+          mkdir -p app/src-tauri/binaries
+          for b in hub hub-daemon hub-relay; do
+            cp "target/${{ matrix.target }}/release/$b$EXT" "app/src-tauri/binaries/$b$EXT"
+          done
 
       - name: Build GUI (prod, embedded frontend, no bundle)
         working-directory: hub/app
