@@ -43,7 +43,7 @@ function exe(name) {
             `Track it: https://github.com/your-org/term-hub#roadmap--vision`
         : `Terminal Hub: no prebuilt binary for ${KEY}.\n` +
             `Supported: ${[...SUPPORTED].join(", ")}.\n` +
-            `Build from source instead: https://github.com/your-org/term-hub#option-b--build-from-source`
+            `See: https://github.com/your-org/term-hub#platform-support`
     );
   }
   const dir = binDir();

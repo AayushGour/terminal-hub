@@ -21,9 +21,9 @@ jobs:
       publish: ${{ steps.decide.outputs.publish }}
       version: ${{ steps.decide.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
       - id: decide
         run: |
           VER=$(node -p "require('./hub/npm/term-hub/package.json').version")
@@ -51,7 +51,7 @@ jobs:
           - { os: ubuntu-22.04-arm, key: linux-arm64,  target: aarch64-unknown-linux-gnu }
           # - { os: windows-latest, key: win32-x64, target: x86_64-pc-windows-msvc }  # phase 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Linux GUI deps
         if: startsWith(matrix.os, 'ubuntu')
@@ -64,8 +64,8 @@ jobs:
         with: { targets: "${{ matrix.target }}" }
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: hub }
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
 
       - name: Build engine binaries
         working-directory: hub
@@ -103,7 +103,7 @@ jobs:
           rm -f "$DST/README.md"
           ls -l "$DST"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pkg-${{ matrix.key }}
           path: hub/npm/packages/${{ matrix.key }}
@@ -115,14 +115,14 @@ jobs:
     if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           registry-url: "https://registry.npmjs.org"
 
       - name: Download built platform packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with: { pattern: pkg-*, path: hub/npm/packages }
 
       - name: Flatten artifacts

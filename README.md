@@ -26,8 +26,7 @@ Capture is **opt-in, consent-gated, and fully reversible**. Nothing is captured 
 - [Platform support](#platform-support)
 - [Quick start](#quick-start)
   - [Option A — Install from npm (recommended)](#option-a--install-from-npm-recommended)
-  - [Option B — Build from source (macOS / Linux)](#option-b--build-from-source-macos--linux)
-  - [Option C — Try it in Docker (no install)](#option-c--try-it-in-docker-no-install)
+  - [Option B — Try it in Docker (no install)](#option-b--try-it-in-docker-no-install)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Uninstall](#uninstall)
@@ -123,31 +122,7 @@ Notes:
 - **Windows:** binaries are phase 2 — see [Roadmap](#roadmap--vision).
 - **Uninstall:** `npm rm -g term-hub` (also removes the apps-menu entry). To revert capture too, run `hub uninstall` first.
 
-### Option B — Build from source (macOS / Linux)
-
-**Prerequisites**
-- [Rust](https://rustup.rs) (stable) and [Node.js](https://nodejs.org) 18+ with npm.
-- **macOS:** Xcode Command Line Tools — `xcode-select --install`.
-- **Linux (Debian/Ubuntu):**
-  ```bash
-  sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-                   librsvg2-dev build-essential curl file libssl-dev pkg-config
-  ```
-
-**Build**
-```bash
-git clone <this-repo> && cd <this-repo>/hub/app
-npm install
-npm run tauri:build      # builds the engine binaries + the app
-```
-
-**Run** the app that was built:
-- **macOS:** `open ../target/release/bundle/macos/hub.app`
-- **Linux:** `../target/release/hub-app` (or install the generated `.deb`/AppImage under `../target/release/bundle/`)
-
-On **first launch**, Terminal Hub asks to enable capture. Click **Enable** — this adds a guarded, reversible line to your `~/.zshrc` (or `~/.bashrc`), drops the binaries in `~/.hub/bin`, and starts the background service. Then **open a new terminal** and it shows up in the app.
-
-### Option C — Try it in Docker (no install)
+### Option B — Try it in Docker (no install)
 
 Want to kick the tires without installing anything? Run a full **Ubuntu 24.04 + XFCE desktop** with Terminal Hub inside, streamed to your browser. Any terminal you open inside gets captured.
 
