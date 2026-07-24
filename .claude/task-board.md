@@ -14,6 +14,7 @@ prio (PM sets): P0 critical · P1 high · P2 medium · P3 low
 - [ ] T1b [product-engineer] Feasibility + spike unknowns  prio:P2  status:todo  deps:T1
 
 ## Dev mode
+- [x] T-hub-update [senior-dev] Add `hub update` subcommand (safe in-place binary/app-bundle update, daemon restart, zero session loss)  prio:P1  status:review  deps:-
 - [ ] T2 [senior-dev] <hard task>  prio:P1  status:todo  deps:T1
 - [ ] T3 [junior-dev] <easy task>  prio:P2  status:todo  deps:T1
 - [ ] T4 [devops] <deploy/CI task>  prio:P2  status:todo  deps:T2

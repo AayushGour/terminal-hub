@@ -96,24 +96,18 @@ pub async fn kill_session(sock: &Path, id: SessionId) -> anyhow::Result<()> {
     }
 }
 
-/// Best-effort daemon shutdown: kill every live session, then stop the
-/// daemon PROCESS itself via `ControlMsg::Shutdown` (autostart removal
-/// remains a fallback in `hub uninstall` for the case where the daemon is
-/// already unreachable). Never errors — `hub uninstall` must proceed even if
-/// the daemon is already down.
+/// Best-effort daemon shutdown: stop the daemon PROCESS itself via
+/// `ControlMsg::Shutdown` (autostart removal remains a fallback in `hub
+/// uninstall` for the case where the daemon is already unreachable). Never
+/// errors — `hub uninstall` must proceed even if the daemon is already down.
 ///
-/// Order matters: sessions are killed FIRST, while the daemon is still up to
-/// route `Kill` to the relays; `Shutdown` is sent last since it stops the
-/// daemon process (a `Shutdown`'d daemon can no longer route anything, but
-/// the relays it leaves behind are untouched by design — see
-/// `hub-daemon/src/server.rs`'s `Shutdown` handler).
+/// Deliberately does NOT kill live sessions first: per
+/// `hub-daemon/src/server.rs`'s `Shutdown` handler, relays own the ptys and
+/// are independent processes by design (SPOF architecture) — they keep
+/// running, and the terminals they back keep working, after the daemon
+/// process exits. `hub uninstall` must not crash the user's open terminals
+/// as a side effect of removing hub's own tooling.
 pub async fn shutdown_daemon(sock: &Path) -> anyhow::Result<()> {
-    if let Ok(sessions) = list_sessions(sock).await {
-        for s in sessions {
-            let _ = kill_session(sock, s.id).await;
-        }
-    }
-
     // Stop the daemon process. If connect fails, the daemon is already
     // down, which is exactly the state we want -- nothing more to do.
     if let Ok(mut conn) = connect_hello(sock).await {

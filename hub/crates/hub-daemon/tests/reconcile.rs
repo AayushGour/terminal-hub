@@ -6,7 +6,8 @@ use hub_relay::record::SessionRecord;
 
 fn info(id: u64) -> SessionInfo {
     SessionInfo { id: SessionId(id), origin: Origin::External, title: "t".into(),
-        pid: 1, started_unix: 0, cols: 80, rows: 24 }
+        pid: 1, started_unix: 0, cols: 80, rows: 24,
+        cwd: String::new(), last_exit_code: None, activity_seq: 0 }
 }
 
 /// Bind a per-session socket that answers List with its own SessionInfo,
@@ -45,13 +46,13 @@ async fn reconcile_buckets_healthy_ghost_orphan() {
     // 1 = healthy: record + live socket.
     SessionRecord { record_version: 1, id: SessionId(1), origin: Origin::External,
         title: "t".into(), pid: 1, started_unix: 0, cols: 80, rows: 24,
-        sock: paths.sock(SessionId(1)).to_string_lossy().into() }.write_atomic(&paths).unwrap();
+        sock: paths.sock(SessionId(1)).to_string_lossy().into(), cwd: String::new(), last_exit_code: None, activity_seq: 0 }.write_atomic(&paths).unwrap();
     fake_live_relay(&paths, 1).await;
 
     // 2 = ghost: record only, no socket.
     SessionRecord { record_version: 1, id: SessionId(2), origin: Origin::External,
         title: "t".into(), pid: 1, started_unix: 0, cols: 80, rows: 24,
-        sock: paths.sock(SessionId(2)).to_string_lossy().into() }.write_atomic(&paths).unwrap();
+        sock: paths.sock(SessionId(2)).to_string_lossy().into(), cwd: String::new(), last_exit_code: None, activity_seq: 0 }.write_atomic(&paths).unwrap();
 
     // 3 = orphan: live socket, no record.
     fake_live_relay(&paths, 3).await;
@@ -93,7 +94,7 @@ async fn reconcile_buckets_ghost_with_stale_dead_socket() {
     // Record for id 9, socket path exists as a plain (non-listening) file.
     SessionRecord { record_version: 1, id: SessionId(9), origin: Origin::External,
         title: "t".into(), pid: 1, started_unix: 0, cols: 80, rows: 24,
-        sock: paths.sock(SessionId(9)).to_string_lossy().into() }.write_atomic(&paths).unwrap();
+        sock: paths.sock(SessionId(9)).to_string_lossy().into(), cwd: String::new(), last_exit_code: None, activity_seq: 0 }.write_atomic(&paths).unwrap();
 
     // Create a stale socket file: bind a real UnixListener, then drop it so
     // the inode/file lingers on disk with nothing accepting connections —
@@ -126,7 +127,7 @@ async fn prune_ghost_removes_record_and_stale_socket_files() {
 
     SessionRecord { record_version: 1, id: SessionId(4), origin: Origin::External,
         title: "t".into(), pid: 1, started_unix: 0, cols: 80, rows: 24,
-        sock: paths.sock(SessionId(4)).to_string_lossy().into() }.write_atomic(&paths).unwrap();
+        sock: paths.sock(SessionId(4)).to_string_lossy().into(), cwd: String::new(), last_exit_code: None, activity_seq: 0 }.write_atomic(&paths).unwrap();
 
     let sock_path = paths.sock(SessionId(4));
     {

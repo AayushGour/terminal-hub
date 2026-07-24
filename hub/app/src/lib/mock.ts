@@ -14,7 +14,18 @@ function emit(event: string, payload: any) {
 // `Toolbar.svelte`'s post-spawn `SessionList.refresh()`) pick it up -- this
 // is what lets the "New session" button flow be exercised end-to-end under
 // VITE_MOCK/Playwright without a real daemon.
-const sessions: any[] = [{ id: 1, origin: "Hub", title: "mock", pid: 0, started_unix: 0, cols: 80, rows: 24 }];
+// cwd/last_exit_code/activity_seq: fake shell-integration fields (spec
+// 2026-07-23-shell-integration-design.md §6) so VITE_MOCK exercises the
+// titlebar/sidebar cwd display without a real relay. Session 1 has already
+// run one command (a plausible deep-ish path + a successful exit); the
+// orphan/ghost fixtures below use a shallower path and a session that
+// hasn't run a command yet (null exit code, activity_seq 0) to cover both
+// truncatePath's ellipsis and non-ellipsis branches under mock/Playwright.
+const sessions: any[] = [{
+  id: 1, origin: "Hub", title: "mock", pid: 0, started_unix: 0, cols: 80, rows: 24,
+  cwd: "/Users/aayush/projects/terminal-hub/hub/target/debug/build/hub-app-77e57a311e8f42d0/out",
+  last_exit_code: 0, activity_seq: 3,
+}];
 let nextId = 2;
 
 // FIX 3: was a hardcoded 10000 (get) + no-op (set), leaving the Settings
@@ -41,9 +52,16 @@ if (typeof window !== "undefined") {
 // so the startup smoke can assert BOTH that they render under their bucket
 // AND that Kill/Clean-up on them actually removes them -- not just that the
 // bucket headers exist (which would pass even with empty buckets).
-const orphans: any[] = [{ id: 50, origin: "Hub", title: "orphan-relay", pid: 0, started_unix: 0, cols: 80, rows: 24 }];
+const orphans: any[] = [{
+  id: 50, origin: "Hub", title: "orphan-relay", pid: 0, started_unix: 0, cols: 80, rows: 24,
+  cwd: "/tmp", last_exit_code: null, activity_seq: 0,
+}];
 const ghosts: any[] = [
-  { id: 51, origin: "Hub", title: "ghost-relay", pid: 0, started_unix: 0, cols: 80, rows: 24, sock: "/tmp/mock-ghost.sock", record_version: 1 },
+  {
+    id: 51, origin: "Hub", title: "ghost-relay", pid: 0, started_unix: 0, cols: 80, rows: 24,
+    cwd: "/Users/aayush/projects/terminal-hub", last_exit_code: 1, activity_seq: 2,
+    sock: "/tmp/mock-ghost.sock", record_version: 1,
+  },
 ];
 
 export async function invoke<T>(cmd: string, args?: any): Promise<T> {
@@ -94,7 +112,12 @@ export async function invoke<T>(cmd: string, args?: any): Promise<T> {
       // shows up a beat later, matching Toolbar's setTimeout(onNew, 400).
       const id = nextId++;
       setTimeout(() => {
-        sessions.push({ id, origin: "Hub", title: "hub-relay", pid: 0, started_unix: 0, cols: 80, rows: 24 });
+        // Freshly spawned: no OSC 7 seen yet, matches spec §5 ("empty until
+        // first OSC 7 seen") / no command run yet.
+        sessions.push({
+          id, origin: "Hub", title: "hub-relay", pid: 0, started_unix: 0, cols: 80, rows: 24,
+          cwd: "", last_exit_code: null, activity_seq: 0,
+        });
       }, 100);
       return undefined as unknown as T;
     }

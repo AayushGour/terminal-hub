@@ -11,6 +11,9 @@ fn si(id: u64) -> SessionInfo {
         started_unix: 0,
         cols: 80,
         rows: 24,
+        cwd: String::new(),
+        last_exit_code: None,
+        activity_seq: 0,
     }
 }
 

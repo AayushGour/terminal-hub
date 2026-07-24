@@ -12,7 +12,7 @@
   import Grid from "./lib/Grid.svelte";
   import Settings from "./lib/Settings.svelte";
   import ConfirmDialog from "./lib/ConfirmDialog.svelte";
-  import { installed, refreshInstalled } from "./lib/store";
+  import { installed, refreshInstalled, sidebarCollapsed, toggleSidebar } from "./lib/store";
 
   let sessionList: SessionList;
 
@@ -98,11 +98,14 @@
 </script>
 
 <main class="layout">
-  <div class="side">
-    <Toolbar onNew={() => sessionList?.refresh()} />
+  <div class="side" class:collapsed={$sidebarCollapsed}>
+    <Toolbar onNew={() => sessionList?.refresh()} collapsed={$sidebarCollapsed} onToggle={toggleSidebar} />
     <SessionList bind:this={sessionList} />
     <Settings onChange={(n) => (scrollback = n)} />
   </div>
+  {#if $sidebarCollapsed}
+    <button class="expand-fab" onclick={toggleSidebar} title="Expand sidebar" aria-label="Expand sidebar">›</button>
+  {/if}
   <Grid {scrollback} />
 </main>
 
@@ -137,10 +140,37 @@
 
 <style>
   :global(body) { margin: 0; background: #111; color: #eee; font-family: system-ui, sans-serif; }
-  .layout { display: flex; height: 100vh; }
-  .side { display: flex; flex-direction: column; width: 280px; border-right: 1px solid #333; overflow-y: auto; }
+  .layout { display: flex; height: 100vh; position: relative; }
+  .side {
+    display: flex; flex-direction: column; width: 280px; border-right: 1px solid #333; overflow-y: auto;
+    transition: width 160ms ease, opacity 120ms ease;
+  }
+  .side.collapsed {
+    width: 0;
+    opacity: 0;
+    border-right: 0;
+    overflow: hidden;
+  }
   main :global(.panel) { width: 100%; border-right: 0; flex: 1; }
   main :global(.grid) { flex: 1; }
+  .expand-fab {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 500;
+    width: 30px;
+    height: 30px;
+    background: #222;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);

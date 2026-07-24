@@ -29,6 +29,9 @@ async fn list_sessions_roundtrips_against_fake_daemon() {
             started_unix: 1,
             cols: 100,
             rows: 30,
+            cwd: String::new(),
+            last_exit_code: None,
+            activity_seq: 0,
         }];
         conn.write_frame(&hub_proto::encode_control(&ControlMsg::Sessions { sessions }))
             .await

@@ -11,3 +11,4 @@ pub mod reconcile;
 pub mod snippet;
 pub mod status;
 pub mod uninstall;
+pub mod update;

@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 vt100 = { workspace = true }
+vte = { workspace = true }

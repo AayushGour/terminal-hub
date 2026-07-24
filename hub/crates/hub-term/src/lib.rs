@@ -1,5 +1,8 @@
 //! hub-term: headless vt100 screen + replay snapshot.
 
+pub mod shell_integration;
+pub use shell_integration::{ShellEvent, ShellIntegration};
+
 /// A headless terminal screen backed by `vt100`, used to build REPLAY snapshots.
 pub struct Screen {
     parser: vt100::Parser,
@@ -26,6 +29,15 @@ impl Screen {
     /// fresh terminal. Used for REPLAY on attach.
     pub fn replay_bytes(&self) -> Vec<u8> {
         self.parser.screen().contents_formatted()
+    }
+
+    /// The terminal's current OSC 0/2 window title (empty until the shell
+    /// sets one). Exposed mainly so title parsing can be verified
+    /// independently of the sibling `shell_integration::ShellIntegration`
+    /// OSC 7/133 scanner -- both parse the same output bytes but must never
+    /// interfere with each other (see `title_parsing_still_works...` test).
+    pub fn title(&self) -> String {
+        self.parser.screen().title().to_string()
     }
 }
 
@@ -86,5 +98,23 @@ mod tests {
         // evicted lines from a broken implementation that left them on screen.
         assert!(!visible.contains("row0"), "oldest line (row0) should be gone: {visible:?}");
         assert!(!visible.contains("row40"), "line row40 should be gone: {visible:?}");
+    }
+
+    // Regression guard for adding the sibling `shell_integration` scanner
+    // module in this crate (design spec §5/§8): `vt100`'s own OSC 0/2
+    // window-title parsing must keep working, completely unaffected, since
+    // the new scanner is a separate `vte::Parser` fed the same bytes, not a
+    // modification of `Screen`/the vendored `vt100` crate.
+    #[test]
+    fn title_parsing_still_works_alongside_the_shell_integration_module() {
+        let mut screen = Screen::new(24, 80, 100);
+        screen.feed(b"\x1b]0;my title\x07hello");
+        assert_eq!(screen.title(), "my title");
+        assert!(String::from_utf8_lossy(&screen.replay_bytes()).contains("hello"));
+
+        // OSC 2 (title only, no icon name) also still works, and a later
+        // OSC 2 updates the title as expected.
+        screen.feed(b"\x1b]2;second title\x07");
+        assert_eq!(screen.title(), "second title");
     }
 }

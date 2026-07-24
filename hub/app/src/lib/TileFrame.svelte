@@ -6,8 +6,14 @@
   // -> claim_size, so the pty follows the window size as before.
   import Terminal from "./Terminal.svelte";
   import { tileGeom, setGeom, bringToFront, closeTile, canvasView } from "./store";
+  import { truncatePath, formatSessionLabel } from "./path";
 
-  let { id, scrollback = 10000, origin = "" }: { id: number; scrollback?: number; origin?: string } = $props();
+  let { id, scrollback = 10000, origin = "", cwd = "" }: { id: number; scrollback?: number; origin?: string; cwd?: string } = $props();
+
+  // Diff-based per spec §7: `cwd` is a plain prop, so this only recomputes
+  // (and Svelte only re-patches the DOM text) when THIS tile's own `cwd`
+  // prop actually changes -- no whole-list/whole-grid re-render.
+  let shortCwd = $derived(truncatePath(cwd));
 
   const MIN_W = 240;
   const MIN_H = 150;
@@ -65,7 +71,8 @@
       tabindex="-1"
     >
       <span class="dot {origin === 'Hub' ? 'hub' : 'ext'}"></span>
-      <span class="tt">{origin || "session"} #{id}</span>
+      <span class="tt">{formatSessionLabel(origin, id)}</span>
+      {#if shortCwd}<span class="cwd" title={cwd}>{shortCwd}</span>{/if}
       <button class="x" title="Detach (close view)" onpointerdown={(e) => e.stopPropagation()} onclick={() => closeTile(id)}>✕</button>
     </div>
 
@@ -110,7 +117,21 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
   .dot.hub { background: #2d6; }
   .dot.ext { background: #58f; }
-  .tt { flex: 1; font-size: 12px; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* `.tt` (origin + #id) stays fixed-size so it's never squeezed out; `.cwd`
+     takes the remaining slack and ellipsizes, same pattern as
+     SessionList.svelte's `.title` (overflow:hidden/text-overflow:ellipsis/
+     white-space:nowrap) so a long path truncates instead of breaking the
+     26px single-row titlebar. */
+  .tt { flex: none; font-size: 12px; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+  .cwd {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 12px;
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .x {
     flex: none; width: 20px; height: 18px; border: 0; border-radius: 3px;
     background: transparent; color: #aaa; cursor: pointer; font-size: 12px; line-height: 1;

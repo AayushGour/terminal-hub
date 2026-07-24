@@ -196,19 +196,28 @@ pub fn plan_dry_run(home: &Path, m: &Manifest) -> Vec<String> {
     for b in &m.binaries {
         out.push(format!("remove binary: {b}"));
     }
+    if let Some(app) = &m.app_bundle {
+        out.push(format!("remove app: {app}"));
+    }
     out
 }
 
 pub async fn run(home: &Path, yes: bool, dry_run: bool) -> anyhow::Result<()> {
     let m = manifest::load(&paths::manifest_path(home))?;
 
-    // Warn about live sessions (best-effort; daemon may be down).
+    // Best-effort; daemon may be down. Live sessions are NOT killed by
+    // uninstall (see `daemon_client::shutdown_daemon`) — surfaced here only
+    // so the user knows those terminals will keep running but become
+    // untracked once ~/.hub is removed below.
     let sock = paths::daemon_sock_path(home);
     let live = daemon_client::list_sessions(&sock).await.unwrap_or_default();
 
     if dry_run {
         println!("hub uninstall --dry-run (nothing will change):");
-        println!("  {} live session(s) would terminate", live.len());
+        println!(
+            "  {} live session(s) will keep running, untracked by hub",
+            live.len()
+        );
         for line in plan_dry_run(home, &m) {
             println!("  {line}");
         }
@@ -217,7 +226,7 @@ pub async fn run(home: &Path, yes: bool, dry_run: bool) -> anyhow::Result<()> {
 
     if !yes {
         println!(
-            "hub uninstall will terminate {} live session(s) and:",
+            "hub uninstall will leave {} live session(s) running (untracked) and:",
             live.len()
         );
         for line in plan_dry_run(home, &m) {
@@ -232,12 +241,10 @@ pub async fn run(home: &Path, yes: bool, dry_run: bool) -> anyhow::Result<()> {
         }
     }
 
-    // 1. Kill live sessions, then stop the daemon PROCESS via
-    //    ControlMsg::Shutdown. NOTE: relays are NOT killed by daemon
-    //    Shutdown (SPOF design -- relays own the ptys and survive daemon
-    //    death); the session kills above are what actually tears sessions
-    //    down. Autostart removal below is the fallback if the daemon is
-    //    already unreachable.
+    // 1. Stop the daemon PROCESS via ControlMsg::Shutdown. Relays are NOT
+    //    killed (SPOF design -- relays own the ptys and survive daemon
+    //    death), so live terminals keep running, just untracked. Autostart
+    //    removal below is the fallback if the daemon is already unreachable.
     let _ = daemon_client::shutdown_daemon(&sock).await;
     // 2. Restore rc files.
     for t in &m.entries {
@@ -255,6 +262,12 @@ pub async fn run(home: &Path, yes: bool, dry_run: bool) -> anyhow::Result<()> {
     // 5. Remove binaries (last; unlinking a running binary is fine on unix).
     for b in &m.binaries {
         let _ = fs::remove_file(b);
+    }
+    // 6. Remove the app bundle hub placed in /Applications (if any). Symmetric
+    //    with `install --app-bundle`; a manually-placed/moved app is untouched
+    //    since it's never recorded here.
+    if let Some(app) = &m.app_bundle {
+        let _ = fs::remove_dir_all(app);
     }
     println!("hub uninstalled. Open a new terminal for a clean shell.");
     Ok(())

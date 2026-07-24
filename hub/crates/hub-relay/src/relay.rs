@@ -46,7 +46,7 @@ pub enum RelayEvent {
 pub struct RelayState;
 
 /// The environment a relay injects into the shell it spawns: `cfg.env` plus a
-/// mandatory `HUB_ACTIVE=1`.
+/// mandatory `HUB_ACTIVE=1` and `TERM=<cfg.term>`.
 ///
 /// A relay-spawned shell is BY DEFINITION a hub-managed shell, so it must mark
 /// itself active. The shell-rc integration snippet guards with
@@ -63,10 +63,29 @@ pub struct RelayState;
 /// other (the "External tile mirrors the Hub session" bug). Injecting here — the
 /// single chokepoint where every relay shell is spawned — fixes every origin;
 /// it's idempotent/harmless for the External path that already had it.
+///
+/// `TERM` needs the exact same treatment and for the exact same reason: without
+/// it, `portable_pty::CommandBuilder` doesn't clear the environment before
+/// spawning, so the child shell falls back to whatever ambient `TERM` the
+/// `hub-relay` PROCESS itself happened to inherit. For External-origin (spawned
+/// from inside a real terminal via `hub attach`) that's a harmless accident --
+/// it inherits Terminal.app/iTerm's own correct `TERM`. For Hub-origin (spawned
+/// directly by the GUI app, which has no controlling terminal) it's unset or
+/// stale, so zsh falls back to a terminfo entry that doesn't match what xterm.js
+/// actually emulates. The shell's line editor (ZLE) and any prompt
+/// theme/plugin issuing capability-dependent cursor-movement escapes then
+/// desyncs from xterm.js's interpretation of them -- visible as corrupted,
+/// overlapping redraws on every keystroke, persisting for the life of the
+/// session (this is a fixed env-var mismatch, not a timing race, so it doesn't
+/// self-correct or depend on when the user starts typing). `cfg.term` is
+/// already parsed and defaults to `"xterm-256color"` (see `main.rs`'s `--term`),
+/// exactly matching xterm.js's `@xterm/xterm` capability set -- it just never
+/// made it into the child's actual environment before this fix.
 pub fn shell_env(cfg: &RelayConfig) -> Vec<(String, String)> {
     let mut env = cfg.env.clone();
-    // Pushed LAST so it always wins over any (currently none) cfg.env entry.
+    // Pushed LAST so these always win over any (currently none) cfg.env entry.
     env.push(("HUB_ACTIVE".to_string(), "1".to_string()));
+    env.push(("TERM".to_string(), cfg.term.clone()));
     env
 }
 
@@ -279,6 +298,9 @@ pub async fn run_relay(cfg: RelayConfig, daemon_sock: Option<String>, own_stdio:
         pid: std::process::id(), started_unix: now_unix(),
         cols: cfg.cols, rows: cfg.rows,
         sock: sock_path.to_string_lossy().into(),
+        // Shell integration (spec §5): empty/unknown until the actor's
+        // ShellIntegration scanner sees the shell's first OSC 7/133 event.
+        cwd: String::new(), last_exit_code: None, activity_seq: 0,
     };
     rec.write_atomic(&paths)?;
 
@@ -550,6 +572,10 @@ pub struct RelayActor {
     pub cur_cols: u16,
     pub cur_rows: u16,
     pub resize_in: Option<mpsc::UnboundedSender<(u16, u16)>>,
+    /// Shell-integration OSC 7/133 scanner (design spec §5/§7). Fed the exact
+    /// same bytes as `screen.feed` in the `RelayEvent::Output` handler -- a
+    /// lightweight sibling tokenize-only pass, never a second full grid.
+    shell_integration: hub_term::ShellIntegration,
 }
 
 impl RelayActor {
@@ -557,10 +583,14 @@ impl RelayActor {
         let info = hub_proto::SessionInfo {
             id, origin: cfg.origin, title: cfg.title.clone(), pid: std::process::id(),
             started_unix: now_unix(), cols: cfg.cols, rows: cfg.rows,
+            // Shell integration (spec §5): empty/unknown until the scanner
+            // sees the shell's first OSC 7/133 event.
+            cwd: String::new(), last_exit_code: None, activity_seq: 0,
         };
         let (cc, cr) = (cfg.cols, cfg.rows);
         Self { cfg, id, paths, pty, screen, info, channels: HashMap::new(),
-               attached: Default::default(), primary_sink: None, cur_cols: cc, cur_rows: cr, resize_in: None }
+               attached: Default::default(), primary_sink: None, cur_cols: cc, cur_rows: cr, resize_in: None,
+               shell_integration: hub_term::ShellIntegration::new() }
     }
 
     fn send_to_attached(&self, frame: &[u8]) {
@@ -570,11 +600,72 @@ impl RelayActor {
     }
 }
 
+/// Rewrite this relay's on-disk `SessionRecord` after a shell-integration
+/// event (design spec §5): atomic write, same `write_atomic` pattern used at
+/// registration, so a crashed relay's ghost record still shows its
+/// last-known cwd/exit code. Best-effort -- a write failure is logged, not
+/// fatal to the actor loop.
+fn write_activity_record(a: &RelayActor) {
+    let rec = SessionRecord {
+        record_version: 1,
+        id: a.id,
+        origin: a.cfg.origin,
+        title: a.cfg.title.clone(),
+        pid: a.info.pid,
+        started_unix: a.info.started_unix,
+        cols: a.cur_cols,
+        rows: a.cur_rows,
+        sock: a.paths.sock(a.id).to_string_lossy().into(),
+        cwd: a.info.cwd.clone(),
+        last_exit_code: a.info.last_exit_code,
+        activity_seq: a.info.activity_seq,
+    };
+    if let Err(e) = rec.write_atomic(&a.paths) {
+        tracing::warn!("session {}: failed to rewrite record after shell-integration event: {e:#}", a.id.0);
+    }
+}
+
+/// Push the new activity to the daemon over the relay's existing persistent
+/// control connection (design spec §5) -- no new connection/socket. Sent to
+/// every channel currently registered (mirrors how `RelayEvent::Exit`'s
+/// `Closed` is broadcast above): the daemon's connection to this relay is
+/// always one of `a.channels`, whichever chan_id it currently holds (it need
+/// not be `attached`, since attachment only gates VIEWER output streaming --
+/// this is a direct relay->daemon control push).
+fn send_activity_to_daemon(a: &RelayActor) {
+    let msg = encode_control(&ControlMsg::SessionActivity {
+        id: a.id,
+        cwd: a.info.cwd.clone(),
+        last_exit_code: a.info.last_exit_code,
+        activity_seq: a.info.activity_seq,
+    });
+    for tx in a.channels.values() { let _ = tx.send(msg.clone()); }
+}
+
 pub async fn run_actor(mut a: RelayActor, mut ev: EventBus) -> anyhow::Result<()> {
     while let Some(event) = ev.rx.recv().await {
         match event {
             RelayEvent::Output(bytes) => {
                 a.screen.feed(&bytes);
+                // Shell integration (design spec §5/§7): a lightweight sibling
+                // tokenize-only pass over the SAME bytes just fed to `screen`
+                // above -- purely event-driven off this existing byte stream,
+                // no new polling loop. NOT stripped from what's forwarded to
+                // viewers below (unlike `strip_focus_reports`, which strips
+                // stdin focus-report bytes on the INPUT side) -- these OSC
+                // sequences are already invisible/no-op to `vt100` and to
+                // xterm.js on the frontend.
+                for shell_ev in a.shell_integration.feed(&bytes) {
+                    match shell_ev {
+                        hub_term::ShellEvent::Cwd(cwd) => { a.info.cwd = cwd; }
+                        hub_term::ShellEvent::CommandFinished(code) => {
+                            a.info.last_exit_code = Some(code);
+                            a.info.activity_seq += 1;
+                        }
+                    }
+                    write_activity_record(&a);
+                    send_activity_to_daemon(&a);
+                }
                 // I4: hand the primary's stdout to its dedicated task via a
                 // non-blocking try_send. A Ctrl-S'd outer terminal blocks only
                 // THAT task; the actor keeps serving viewers/input/resize.

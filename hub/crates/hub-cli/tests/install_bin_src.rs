@@ -51,7 +51,7 @@ fn install_bin_src_copies_and_paths() {
     let (home_dir, src) = setup();
     let home = home_dir.path();
 
-    hub_cli::install::run(home, true, Some(src.path())).unwrap();
+    hub_cli::install::run(home, true, Some(src.path()), None).unwrap();
 
     // 1. All three binaries copied into ~/.hub/bin at mode 0755.
     let bin = paths::bin_dir(home);
@@ -101,7 +101,7 @@ fn uninstall_reverts_bin_src_install() {
     let home = home_dir.path();
     let original = fs::read_to_string(home.join(".zshrc")).unwrap();
 
-    hub_cli::install::run(home, true, Some(src.path())).unwrap();
+    hub_cli::install::run(home, true, Some(src.path()), None).unwrap();
     // Sanity: install actually did the self-contained work.
     assert!(paths::bin_dir(home).join("hub-daemon").exists());
     assert!(fs::read_to_string(home.join(".zshrc")).unwrap().contains(">>> hub"));

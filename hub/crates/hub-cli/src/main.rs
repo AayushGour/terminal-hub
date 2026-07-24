@@ -1,6 +1,6 @@
 use clap::Parser;
 use hub_cli::cli::{Cli, Command};
-use hub_cli::{attach, install, kill, paths, status, uninstall};
+use hub_cli::{attach, install, kill, paths, status, uninstall, update};
 
 fn main() {
     let cli = Cli::parse();
@@ -12,10 +12,13 @@ fn main() {
             let code = rt.block_on(async move {
                 let home = paths::home_dir();
                 let res = match other {
-                    Command::Install { yes, bin_src } => {
-                        install::run(&home, yes, bin_src.as_deref())
+                    Command::Install { yes, bin_src, app_bundle } => {
+                        install::run(&home, yes, bin_src.as_deref(), app_bundle.as_deref())
                     }
                     Command::Uninstall { yes, dry_run } => uninstall::run(&home, yes, dry_run).await,
+                    Command::Update { yes, bin_src, app_bundle } => {
+                        update::run(&home, yes, bin_src.as_deref(), app_bundle.as_deref()).await
+                    }
                     Command::Status => status::run(&home).await,
                     Command::Kill { id } => kill::run(&home, id).await,
                     Command::Attach { .. } => unreachable!(),

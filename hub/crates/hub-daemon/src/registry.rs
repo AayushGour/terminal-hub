@@ -120,6 +120,23 @@ impl Registry {
         }
     }
 
+    /// Mutate the in-memory `SessionInfo` for `id` with a new shell-integration
+    /// activity report (relay -> daemon `ControlMsg::SessionActivity`, design
+    /// spec 2026-07-23-shell-integration-design.md §5). This is the SAME map
+    /// `Open`/`Opened` populate, so it's immediately visible to the next
+    /// `ControlMsg::List` -- the GUI's "healthy" bucket sources `SessionInfo`
+    /// from here, not from disk (spec §5's closing paragraph). No-op on an
+    /// unknown/already-torn-down session (e.g. a stale message racing a
+    /// `Closed`).
+    pub async fn update_activity(&self, id: SessionId, cwd: String, last_exit_code: Option<i32>, activity_seq: u64) {
+        let mut g = self.inner.lock().await;
+        if let Some(s) = g.sessions.get_mut(&id) {
+            s.info.cwd = cwd;
+            s.info.last_exit_code = last_exit_code;
+            s.info.activity_seq = activity_seq;
+        }
+    }
+
     /// Register a viewer sink on a session; returns its viewer_id and queues it
     /// for the next Replay. On an unknown session the sink is handed back
     /// (`Err`) so the caller can report an error before it drops. Also forwards

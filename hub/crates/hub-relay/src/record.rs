@@ -19,6 +19,17 @@ pub struct SessionRecord {
     pub rows: u16,
     /// Absolute path to this relay's per-session socket.
     pub sock: String,
+    /// Shell integration (OSC 7): mirrors `SessionInfo::cwd` (design spec
+    /// 2026-07-23-shell-integration-design.md §5), so a crashed relay's ghost
+    /// record still shows its last-known cwd. Empty until the first OSC 7.
+    #[serde(default)]
+    pub cwd: String,
+    /// Mirrors `SessionInfo::last_exit_code`.
+    #[serde(default)]
+    pub last_exit_code: Option<i32>,
+    /// Mirrors `SessionInfo::activity_seq`.
+    #[serde(default)]
+    pub activity_seq: u64,
 }
 
 impl SessionRecord {
@@ -26,6 +37,7 @@ impl SessionRecord {
         SessionInfo {
             id: self.id, origin: self.origin, title: self.title.clone(),
             pid: self.pid, started_unix: self.started_unix, cols: self.cols, rows: self.rows,
+            cwd: self.cwd.clone(), last_exit_code: self.last_exit_code, activity_seq: self.activity_seq,
         }
     }
 

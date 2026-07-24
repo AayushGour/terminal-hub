@@ -39,6 +39,10 @@ pub struct Manifest {
     pub binaries: Vec<String>,
     #[serde(default)]
     pub install_prefix: Option<String>,
+    /// Path hub copied the `.app` bundle to (e.g. `/Applications/hub.app`),
+    /// if `hub install --app-bundle` was used. `None` for CLI-only installs.
+    #[serde(default)]
+    pub app_bundle: Option<String>,
 }
 
 fn one() -> u32 {

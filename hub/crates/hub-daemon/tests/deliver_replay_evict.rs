@@ -9,7 +9,10 @@ use hub_proto::{encode_control, ControlMsg, Origin, SessionId, SessionInfo};
 use tokio::sync::{mpsc, oneshot};
 
 fn info(id: SessionId) -> SessionInfo {
-    SessionInfo { id, origin: Origin::Hub, title: "t".into(), pid: 0, started_unix: 0, cols: 80, rows: 24 }
+    SessionInfo {
+        id, origin: Origin::Hub, title: "t".into(), pid: 0, started_unix: 0, cols: 80, rows: 24,
+        cwd: String::new(), last_exit_code: None, activity_seq: 0,
+    }
 }
 
 #[tokio::test]

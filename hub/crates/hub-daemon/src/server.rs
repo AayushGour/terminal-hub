@@ -209,7 +209,10 @@ pub async fn handle_conn(
         Frame::Control(ControlMsg::Open { origin, title, cols, rows, .. }) => {
             let tx = spawn_writer(wr); // relay-facing: UNBOUNDED
             let id = reg.alloc_id().await;
-            let info = SessionInfo { id, origin, title, pid: 0, started_unix: now_unix(), cols, rows };
+            let info = SessionInfo {
+                id, origin, title, pid: 0, started_unix: now_unix(), cols, rows,
+                cwd: String::new(), last_exit_code: None, activity_seq: 0,
+            };
             reg.add_session(info, tx.clone()).await;
             let _ = tx.send(encode_control(&ControlMsg::Opened { id }));
             tracing::info!("relay registered as session {}", id.0);
@@ -304,6 +307,13 @@ async fn drive_relay(fr: &mut FrameReader<tokio::net::unix::OwnedReadHalf>, reg:
                 }
                 reg.broadcast_closed(id, exit_code).await;
                 break;
+            }
+            Frame::Control(ControlMsg::SessionActivity { id: aid, cwd, last_exit_code, activity_seq }) => {
+                if aid != id {
+                    tracing::warn!("drive_relay({}): dropping SessionActivity frame declaring foreign id {}", id.0, aid.0);
+                    continue;
+                }
+                reg.update_activity(id, cwd, last_exit_code, activity_seq).await;
             }
             _ => {}
         }

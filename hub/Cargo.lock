@@ -1502,6 +1502,7 @@ name = "hub-term"
 version = "0.1.0"
 dependencies = [
  "vt100",
+ "vte",
 ]
 
 [[package]]

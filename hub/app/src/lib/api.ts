@@ -27,6 +27,13 @@ export interface SessionInfo {
   started_unix: number;
   cols: number;
   rows: number;
+  // Shell integration (spec: 2026-07-23-shell-integration-design.md §5/§6).
+  // `serde` emits these as plain snake_case (no rename attrs on
+  // `hub_proto::SessionInfo`, same as the existing fields above), so no
+  // camelCase aliasing here either -- kept consistent with `started_unix`.
+  cwd: string;
+  last_exit_code: number | null;
+  activity_seq: number;
 }
 export interface GhostRecord extends SessionInfo {
   sock: string;

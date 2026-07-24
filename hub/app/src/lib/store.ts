@@ -1,6 +1,6 @@
 // Task 7: shared session-list state. SessionList.svelte writes into these on
 // refresh(); App.svelte reads openTiles to know which Terminal tiles to mount.
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import type { SessionInfo, GhostRecord } from "./api";
 import { hubIsInstalled } from "./api";
 
@@ -40,15 +40,40 @@ export async function refreshInstalled(): Promise<boolean> {
   }
 }
 
+// --- sidebar collapse toggle (persisted) ---
+const SIDEBAR_KEY = "hub.sidebarCollapsed";
+export const sidebarCollapsed = writable<boolean>(
+  typeof localStorage !== "undefined" && localStorage.getItem(SIDEBAR_KEY) === "1",
+);
+export function toggleSidebar() {
+  sidebarCollapsed.update((v) => {
+    const next = !v;
+    if (typeof localStorage !== "undefined") localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+    return next;
+  });
+}
+
 // --- free-form tile geometry (drag to move / resize) ---
 // Each open tile is a floating window with a position + size + stacking order.
 // Kept in-memory (resets on reload); a tile gets a cascaded default on open.
 export interface TileGeom { x: number; y: number; w: number; h: number; z: number; }
 export const tileGeom = writable<Record<number, TileGeom>>({});
 let topZ = 0;
-const CASCADE = 30;
+// Gap (world px) between a new tile and its neighbors, and inset from the
+// viewport edge for the very first candidate position.
+const MARGIN = 24;
 export const DEFAULT_W = 520;
 export const DEFAULT_H = 340;
+
+// Screen-px size of the Grid viewport DOM node, kept in sync by a
+// ResizeObserver in Grid.svelte (mirrors the ResizeObserver pattern
+// Terminal.svelte uses for pty sizing). Lets ensureGeom() anchor a new tile's
+// search to whatever part of the unbounded canvas the user is currently
+// looking at, instead of a fixed world coordinate they'd have to pan to find.
+// {w: 0, h: 0} (not yet measured) is a valid state -- callers fall back to a
+// sane default.
+export const viewportSize = writable<{ w: number; h: number }>({ w: 0, h: 0 });
+
 export function bringToFront(id: number) {
   topZ += 1;
   const z = topZ;
@@ -57,15 +82,52 @@ export function bringToFront(id: number) {
 export function setGeom(id: number, patch: Partial<TileGeom>) {
   tileGeom.update((g) => (g[id] ? { ...g, [id]: { ...g[id], ...patch } } : g));
 }
+
+type Box = { x: number; y: number; w: number; h: number };
+function boxesOverlap(a: Box, b: Box): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// Scan a grid of DEFAULT_W x DEFAULT_H candidate slots, row-major, starting at
+// (originX, originY) and growing outward (more rows, more columns) until one
+// doesn't overlap any existing tile. This always terminates: MAX_ROWS is a
+// hard safety valve (unreachable in practice -- it'd mean every one of
+// maxCols * MAX_ROWS slots is occupied), so a spot is always returned.
+function findFreeSpot(existing: Box[], originX: number, originY: number, maxCols: number): { x: number; y: number } {
+  const stepX = DEFAULT_W + MARGIN;
+  const stepY = DEFAULT_H + MARGIN;
+  const cols = Math.max(1, maxCols);
+  const MAX_ROWS = 500;
+  for (let row = 0; row < MAX_ROWS; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = originX + col * stepX;
+      const y = originY + row * stepY;
+      const candidate: Box = { x, y, w: DEFAULT_W, h: DEFAULT_H };
+      if (!existing.some((g) => boxesOverlap(candidate, g))) return { x, y };
+    }
+  }
+  // Unreachable in practice; still a deterministic, non-overlapping-with-origin
+  // fallback so we never fail to return a position.
+  return { x: originX, y: originY + MAX_ROWS * stepY };
+}
+
 function ensureGeom(id: number) {
   tileGeom.update((g) => {
     if (g[id]) return g;
-    const n = Object.keys(g).length;
     topZ += 1;
-    return {
-      ...g,
-      [id]: { x: 24 + (n % 6) * CASCADE, y: 24 + (n % 6) * CASCADE, w: DEFAULT_W, h: DEFAULT_H, z: topZ },
-    };
+    const existing = Object.values(g);
+    // Anchor the search to the world coords currently visible in the
+    // viewport (screen = world*zoom + pan, so world = (screen - pan)/zoom),
+    // inset by MARGIN from the top-left corner -- new tiles land where the
+    // user is looking, not off in some far-away fixed spot.
+    const { panX, panY, zoom } = get(canvasView);
+    const vp = get(viewportSize);
+    const originX = (MARGIN - panX) / zoom;
+    const originY = (MARGIN - panY) / zoom;
+    const viewCols = vp.w > 0 ? Math.floor(vp.w / zoom / (DEFAULT_W + MARGIN)) : 0;
+    const maxCols = Math.min(10, Math.max(1, viewCols || 4));
+    const { x, y } = findFreeSpot(existing, originX, originY, maxCols);
+    return { ...g, [id]: { x, y, w: DEFAULT_W, h: DEFAULT_H, z: topZ } };
   });
 }
 function dropGeom(ids: Set<number>) {

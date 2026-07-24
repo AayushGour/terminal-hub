@@ -19,6 +19,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 portable-pty = "0.8"
 vt100 = "0.15"
+# Same OSC/CSI tokenizer `vt100` itself uses (transitive today); made an
+# explicit direct dependency for `hub-term`'s shell-integration scanner
+# (spec 2026-07-23-shell-integration-design.md §5/§7) so it's a lightweight
+# tokenize-only pass, not a second `vt100::Parser`/full terminal grid.
+vte = "0.11"
 anyhow = "1"
 thiserror = "1"
 tracing = "0.1"

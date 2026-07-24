@@ -1,18 +1,45 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { get } from "svelte/store";
   import TileFrame from "./TileFrame.svelte";
   import {
     openTiles, healthy, orphan, tileGeom,
-    canvasView, panBy, zoomBy, resetView, MIN_ZOOM, MAX_ZOOM,
+    canvasView, panBy, zoomBy, resetView, MIN_ZOOM, MAX_ZOOM, viewportSize,
   } from "./store";
   let { scrollback = 10000 }: { scrollback?: number } = $props();
 
   let viewportEl: HTMLDivElement;
 
+  // Keep `viewportSize` (screen px) in sync so store.ts's ensureGeom() can
+  // anchor a newly-opened tile's spawn position to whatever part of the
+  // canvas is currently visible. Mirrors the ResizeObserver pattern
+  // Terminal.svelte uses for pty sizing.
+  onMount(() => {
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r) viewportSize.set({ w: r.width, h: r.height });
+    });
+    ro.observe(viewportEl);
+    return () => ro.disconnect();
+  });
+
   // id -> origin, for the window title bar label + dot color.
   let originOf = $derived.by(() => {
     const m: Record<number, string> = {};
     for (const s of [...$healthy, ...$orphan]) m[s.id] = s.origin;
+    return m;
+  });
+
+  // id -> cwd, for the titlebar's truncated-path span (spec:
+  // 2026-07-23-shell-integration-design.md §6). Same shape/pattern as
+  // `originOf` above -- SessionList.svelte's `refresh()` already sets
+  // `healthy`/`orphan` from `reconcile()`, so this map only changes when a
+  // session's own `cwd` actually does, and TileFrame's `$derived` (keyed by
+  // `{#each $openTiles as id (id)}`, unchanged below) only re-patches that
+  // one tile's text -- no whole-grid re-render.
+  let cwdOf = $derived.by(() => {
+    const m: Record<number, string> = {};
+    for (const s of [...$healthy, ...$orphan]) m[s.id] = s.cwd;
     return m;
   });
 
@@ -101,7 +128,7 @@
     style="transform: translate({$canvasView.panX}px, {$canvasView.panY}px) scale({$canvasView.zoom});"
   >
     {#each $openTiles as id (id)}
-      <TileFrame {id} {scrollback} origin={originOf[id] ?? ""} />
+      <TileFrame {id} {scrollback} origin={originOf[id] ?? ""} cwd={cwdOf[id] ?? ""} />
     {/each}
   </div>
 

@@ -39,6 +39,22 @@ pub struct GhostRecord {
     pub started_unix: u64,
     pub cols: u16,
     pub rows: u16,
+    // Spec §5 (2026-07-23-shell-integration-design.md): mirrors the 3 new
+    // `SessionInfo`/`SessionRecord` fields so a ghost record still shows the
+    // last-known cwd/exit code after a crashed relay's final disk write.
+    // `#[serde(default)]` matches `hub_relay::record::SessionRecord`'s own
+    // choice: an on-disk record written before this feature existed lacks
+    // these keys entirely, and per this file's own doc comment on
+    // `read_records`, "one corrupt record must not hide every other session"
+    // -- without `default`, every pre-existing ghost record on disk would
+    // fail to deserialize and silently vanish from the ghost bucket instead
+    // of just showing a blank cwd/no exit code.
+    #[serde(default)]
+    pub cwd: String,
+    #[serde(default)]
+    pub last_exit_code: Option<i32>,
+    #[serde(default)]
+    pub activity_seq: u64,
     pub sock: String,
     pub record_version: u32,
 }
@@ -99,11 +115,13 @@ mod tests {
 
     fn info(id: u64) -> SessionInfo {
         SessionInfo { id: SessionId(id), origin: Origin::External, title: format!("s{id}"),
-                      pid: 1, started_unix: 1, cols: 80, rows: 24 }
+                      pid: 1, started_unix: 1, cols: 80, rows: 24,
+                      cwd: String::new(), last_exit_code: None, activity_seq: 0 }
     }
     fn rec(id: u64) -> GhostRecord {
         GhostRecord { id, origin: Origin::External, title: format!("s{id}"), pid: 1,
                       started_unix: 1, cols: 80, rows: 24,
+                      cwd: String::new(), last_exit_code: None, activity_seq: 0,
                       sock: format!("/tmp/{id}.sock"), record_version: 1 }
     }
 
@@ -144,5 +162,27 @@ mod tests {
         assert_eq!(recs.len(), 1);
         assert_eq!(recs[0].id, 9);
         assert_eq!(recs[0].sock, "/tmp/9.sock");
+    }
+
+    // A record file written by a relay from BEFORE the shell-integration
+    // fields existed has no `cwd`/`last_exit_code`/`activity_seq` keys at
+    // all. `#[serde(default)]` on those 3 `GhostRecord` fields must let it
+    // still deserialize (cwd empty, last_exit_code None, activity_seq 0)
+    // instead of being silently dropped by `read_records`' skip-on-error path.
+    #[test]
+    fn read_records_defaults_shell_integration_fields_for_pre_existing_record() {
+        let tmp = tempfile::tempdir().unwrap();
+        let old_format = serde_json::json!({
+            "id": 7, "origin": "External", "title": "s7", "pid": 1,
+            "started_unix": 1, "cols": 80, "rows": 24,
+            "sock": "/tmp/7.sock", "record_version": 1,
+        });
+        std::fs::write(tmp.path().join("7.json"), serde_json::to_vec(&old_format).unwrap()).unwrap();
+
+        let recs = read_records(tmp.path());
+        assert_eq!(recs.len(), 1);
+        assert_eq!(recs[0].cwd, "");
+        assert_eq!(recs[0].last_exit_code, None);
+        assert_eq!(recs[0].activity_seq, 0);
     }
 }

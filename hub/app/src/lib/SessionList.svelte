@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { reconcile, kill } from "./api";
+  import { truncatePath, formatSessionLabel } from "./path";
   import {
     healthy, ghost, orphan,
     openTiles, openTile, closeTile, closeTiles,
@@ -103,10 +104,11 @@
     {#each $healthy as s (s.id)}
       {@const isOpen = $openTiles.includes(s.id)}
       {@const busy = $busyIds.has(s.id)}
+      {@const shortCwd = truncatePath(s.cwd)}
       <div class="row" class:attached={isOpen}>
         <span class="badge {s.origin === 'Hub' ? 'hub' : 'ext'}">{s.origin}</span>
-        <button class="title" onclick={() => toggle(s.id)} title="{isOpen ? 'Detach' : 'Open'} {s.title} #{s.id}">
-          {s.title} #{s.id}
+        <button class="title" onclick={() => toggle(s.id)} title="{isOpen ? 'Detach' : 'Open'} {s.title} {formatSessionLabel(s.origin, s.id)}{shortCwd ? ' — ' + s.cwd : ''}">
+          {s.title} {formatSessionLabel(s.origin, s.id)}{#if shortCwd}<span class="cwd"> · {shortCwd}</span>{/if}
         </button>
         <button class="act" onclick={() => toggle(s.id)} disabled={busy}>
           {isOpen ? "Detach" : "Open"}
@@ -124,9 +126,12 @@
     {#each $orphan as s (s.id)}
       {@const isOpen = $openTiles.includes(s.id)}
       {@const busy = $busyIds.has(s.id)}
+      {@const shortCwd = truncatePath(s.cwd)}
       <div class="row orphan" class:attached={isOpen}>
         <span class="badge {s.origin === 'Hub' ? 'hub' : 'ext'}">{s.origin}</span>
-        <button class="title" onclick={() => toggle(s.id)}>{s.title} #{s.id}</button>
+        <button class="title" onclick={() => toggle(s.id)} title={s.cwd}>
+          {s.title} {formatSessionLabel(s.origin, s.id)}{#if shortCwd}<span class="cwd"> · {shortCwd}</span>{/if}
+        </button>
         <button class="act kill" onclick={() => onKill(s.id)} disabled={busy}>
           {#if busy}<Spinner size={12} />{:else}Kill{/if}
         </button>
@@ -139,9 +144,12 @@
     {#if $ghost.length === 0}<p class="empty">None.</p>{/if}
     {#each $ghost as g (g.id)}
       {@const busy = $busyIds.has(g.id)}
+      {@const shortCwd = truncatePath(g.cwd)}
       <div class="row ghost">
         <span class="badge {g.origin === 'Hub' ? 'hub' : 'ext'}">{g.origin}</span>
-        <span class="title dim">{g.title} #{g.id}</span>
+        <span class="title dim" title={g.cwd}>
+          {g.title} {formatSessionLabel(g.origin, g.id)}{#if shortCwd}<span class="cwd"> · {shortCwd}</span>{/if}
+        </span>
         <button class="act kill" onclick={() => onKill(g.id)} disabled={busy}>
           {#if busy}<Spinner size={12} />{:else}Clean up{/if}
         </button>
@@ -195,6 +203,10 @@
     font: inherit;
   }
   .title.dim { cursor: default; opacity: 0.6; }
+  /* cwd rides inside `.title`'s existing single-line ellipsis (issue #1) --
+     no separate row/height added, just a dimmer trailing segment of the
+     same truncating line. */
+  .cwd { opacity: 0.6; font-size: 12px; }
 
   .act {
     flex: none;

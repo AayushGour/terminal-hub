@@ -492,6 +492,7 @@ mod tests {
             let info = SessionInfo {
                 id: SessionId(3), origin: Origin::Hub, title: "t".into(),
                 pid: 1, started_unix: 1, cols: 80, rows: 24,
+                cwd: String::new(), last_exit_code: None, activity_seq: 0,
             };
             conn.write_frame(&encode_control(&ControlMsg::Sessions { sessions: vec![info] })).await.unwrap();
         });

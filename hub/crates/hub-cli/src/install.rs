@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -324,6 +324,38 @@ pub fn copy_binaries(
     Ok(bin_dir.join("hub-daemon"))
 }
 
+/// Copy a built `.app` bundle into `/Applications/<same-basename>`, replacing
+/// any existing bundle at that destination. Uses `ditto` rather than a manual
+/// walk or `cp -R`: it's Apple's own tool for copying bundles and is the only
+/// one guaranteed to preserve everything a signed `.app` needs verbatim
+/// (resource forks, xattrs incl. the code-signature-relevant ones, symlinks)
+/// — a naive recursive copy can silently produce a bundle macOS refuses to
+/// launch (Gatekeeper) or treats as damaged.
+/// Returns the destination path on success.
+#[cfg(target_os = "macos")]
+pub fn install_app_bundle(src: &Path) -> anyhow::Result<PathBuf> {
+    let name = src
+        .file_name()
+        .ok_or_else(|| anyhow::anyhow!("app bundle path has no file name: {}", src.display()))?;
+    let dest = Path::new("/Applications").join(name);
+    // `ditto` overwrites an existing destination bundle in place (unlike
+    // `cp -R`, which would nest src inside an existing same-named dir).
+    let status = std::process::Command::new("ditto")
+        .arg(src)
+        .arg(&dest)
+        .status()
+        .with_context(|| format!("run ditto {} -> {}", src.display(), dest.display()))?;
+    if !status.success() {
+        anyhow::bail!("ditto {} -> {} failed: {status}", src.display(), dest.display());
+    }
+    Ok(dest)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn install_app_bundle(_src: &Path) -> anyhow::Result<PathBuf> {
+    anyhow::bail!("--app-bundle is only supported on macOS")
+}
+
 /// Persist `m` to `home`'s manifest path immediately. Called after every
 /// single rc-file edit inside `inject_all` (and again after autostart is
 /// configured in `run`) so a crash mid-install never leaves an edited rc
@@ -378,7 +410,12 @@ pub fn inject_all(home: &Path, shells: &[Shell], m: &mut Manifest) -> anyhow::Re
     Ok(())
 }
 
-pub fn run(home: &Path, yes: bool, bin_src: Option<&Path>) -> anyhow::Result<()> {
+pub fn run(
+    home: &Path,
+    yes: bool,
+    bin_src: Option<&Path>,
+    app_bundle: Option<&Path>,
+) -> anyhow::Result<()> {
     let env_shell = std::env::var("SHELL").ok();
     let exists = |p: &Path| p.exists();
     let shells = detect_shells(env_shell.as_deref(), &exists);
@@ -392,6 +429,15 @@ pub fn run(home: &Path, yes: bool, bin_src: Option<&Path>) -> anyhow::Result<()>
                 src.display(),
                 paths::bin_dir(home).display()
             );
+        }
+        if let Some(src) = app_bundle {
+            if let Some(name) = src.file_name() {
+                println!(
+                    "  - copy {} into /Applications/{}",
+                    src.display(),
+                    Path::new(name).display()
+                );
+            }
         }
         for s in &shells {
             println!("  - inject a guarded snippet for {s:?} (backing up your rc first)");
@@ -438,6 +484,18 @@ pub fn run(home: &Path, yes: bool, bin_src: Option<&Path>) -> anyhow::Result<()>
     } else {
         eprintln!("hub: hub-daemon not found next to `hub`; autostart skipped");
     }
+
+    if let Some(src) = app_bundle {
+        match install_app_bundle(src) {
+            Ok(dest) => {
+                m.app_bundle = Some(dest.display().to_string());
+                manifest::save(&paths::manifest_path(home), &m)?;
+                println!("  - installed app: {}", dest.display());
+            }
+            Err(e) => eprintln!("hub: app bundle install skipped: {e:#}"),
+        }
+    }
+
     println!("hub installed. Open a new terminal to start capturing sessions.");
     println!("Bypass anytime with HUB_DISABLE=1; remove with `hub uninstall`.");
     Ok(())

@@ -112,7 +112,7 @@ npm i -g @term-hub/term-hub
 
 Then:
 - **Launch the GUI:** run `term-hub`, or click **Terminal Hub** in your apps menu — Launchpad/Spotlight (macOS), the app grid (Linux), or the Start Menu (Windows). The install registers it automatically.
-- **Use the CLI:** `hub status`, `hub kill <id>`, `hub uninstall`, …
+- **Use the CLI:** `hub status`, `hub kill <id>`, `hub update`, `hub uninstall`, …
 
 On **first launch**, Terminal Hub asks to enable capture — click **Enable**, then open a new terminal and it shows up.
 
@@ -158,6 +158,22 @@ docker rm -f hub-gui       # remove
 - **Turn capture off globally:** uninstall (below), or comment out the marked block in your rc file.
 - **Scrollback buffer:** set per-tile scrollback in **Settings** (applies to newly opened tiles).
 
+## Update
+
+`hub update` swaps an **already-installed** hub for a freshly built one, in place, without dropping any of your currently-open captured terminals.
+
+```bash
+hub update --bin-src <dir> [--app-bundle <path/to/hub.app>] [--yes]
+```
+
+- `--bin-src <dir>` — copies `hub`, `hub-daemon`, `hub-relay` from `<dir>` into `~/.hub/bin` (same shape as `hub install --bin-src`). Omit it to leave the binaries on disk untouched and just restart the daemon.
+- `--app-bundle <path>` — also replaces the `.app` bundle in `/Applications` (macOS only). Omit it to leave any previously installed app bundle as-is.
+- `--yes` — skip the confirmation prompt (otherwise `hub update` prints its plan — which binaries/bundle will change, how many live sessions will be preserved — and asks `[y/N]`).
+
+Under the hood: the daemon *process* is stopped and a fresh one started (binaries are swapped via an atomic rename, so anything still holding the old file open keeps running against it until the swap). Your terminals' shells and ptys are owned by independent relay processes that are never touched — the new daemon process re-discovers every still-running session on its own startup, the same mechanism that already makes a daemon crash/restart session-safe. Expect a sub-second window where `hub status` / the GUI can't reach the daemon; the sessions themselves never blink.
+
+Requires a prior `hub install`; running it without one fails with a clear error rather than doing anything.
+
 ## Uninstall
 
 - **From the app:** Settings → **Uninstall hub & remove app** — reverts the rc line (preserving any edits you made after install), stops the service, deletes `~/.hub`, and moves the app to the Trash.
@@ -200,7 +216,7 @@ hub/
 │   ├── hub-transport   # framed async conn + auth (token + peer-uid)
 │   ├── hub-relay       # per-session pty owner (detach, raw-term, resize)
 │   ├── hub-daemon      # non-pty router (singleton, reconcile)
-│   ├── hub-cli         # install / uninstall / status / kill
+│   ├── hub-cli         # install / update / uninstall / status / kill
 │   └── hub-tui         # terminal viewer
 ├── app/                # Tauri v2 + Svelte 5 + xterm.js GUI
 ├── install/            # the shell-rc snippets that get injected
